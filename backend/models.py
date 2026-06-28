@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, UUID, Enum, Integer, Text, ForeignKey, DECIMAL, JSONB
+from sqlalchemy import Column, String, Boolean, DateTime, UUID, Enum, Integer, Text, ForeignKey, DECIMAL, JSONB, Date
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -34,6 +34,15 @@ class CapaStatusEnum(str, enum.Enum):
     COMPLETED = "completed"
     OVERDUE = "overdue"
     CLOSED = "closed"
+
+class AuditActionEnum(str, enum.Enum):
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+    LOGIN = "login"
+    LOGOUT = "logout"
+    EXPORT = "export"
+    IMPORT = "import"
 
 class User(Base):
     __tablename__ = "users"
@@ -158,3 +167,70 @@ class CAPA(Base):
     # Relationships
     incident = relationship("Incident", back_populates="capa_records")
     assigned_user = relationship("User", foreign_keys=[assigned_to], back_populates="capa_assignments")
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
+    action = Column(Enum(AuditActionEnum), nullable=False, index=True)
+    entity_type = Column(String(100), nullable=False, index=True)
+    entity_id = Column(UUID(as_uuid=True))
+    entity_details = Column(JSONB)
+    ip_address = Column(String(45))
+    user_agent = Column(String(500))
+    status = Column(String(50))
+    error_message = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_number = Column(String(50), unique=True, nullable=False, index=True)
+    report_type = Column(String(50), nullable=False, index=True)
+    frequency = Column(String(50))
+    circle_id = Column(UUID(as_uuid=True), ForeignKey("circles.id", ondelete="SET NULL"))
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendors.id", ondelete="SET NULL"))
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    generated_date = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    file_path = Column(String(500))
+    file_size = Column(Integer)
+    total_incidents = Column(Integer, default=0)
+    total_capa = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+
+class ExcelImport(Base):
+    __tablename__ = "excel_imports"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    file_name = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    file_size = Column(Integer)
+    import_type = Column(String(50))
+    total_records = Column(Integer, default=0)
+    successful_records = Column(Integer, default=0)
+    failed_records = Column(Integer, default=0)
+    error_details = Column(JSONB)
+    status = Column(String(50), default="pending")
+    import_date = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    notification_type = Column(String(50))
+    related_incident_id = Column(UUID(as_uuid=True), ForeignKey("incidents.id", ondelete="SET NULL"))
+    related_capa_id = Column(UUID(as_uuid=True), ForeignKey("capa.id", ondelete="SET NULL"))
+    is_read = Column(Boolean, default=False, index=True)
+    read_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

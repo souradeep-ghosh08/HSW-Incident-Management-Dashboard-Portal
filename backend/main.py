@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from config import settings
 from database import init_db, SessionLocal
-from routes import auth, health
+from routes import auth, health, incidents, vendors, circles, dashboard, capa, excel_service, reports
 import models
 from database import Base, engine
 
@@ -89,6 +89,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Include routers
 app.include_router(auth.router)
 app.include_router(health.router)
+app.include_router(incidents.router)
+app.include_router(vendors.router)
+app.include_router(circles.router)
+app.include_router(dashboard.router)
+app.include_router(capa.router)
+app.include_router(excel_service.router)
+app.include_router(reports.router)
 
 # Root endpoint
 @app.get("/")
